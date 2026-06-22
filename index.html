@@ -2,7 +2,11 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Stars Racers">
 <title>Stars Racers 3D — PS1 (Phase 1)</title>
 <style>
   html,body{margin:0;height:100%;background:#0a0a12;overflow:hidden;font-family:monospace;touch-action:none;overscroll-behavior:none}
@@ -1652,27 +1656,32 @@ loop();
       fb.addEventListener('touchstart',e=>{ e.preventDefault(); e.stopPropagation(); _goFullscreen(); },{passive:false});
       fb.addEventListener('click',e=>{ e.preventDefault(); _goFullscreen(); }); }
     try{ _fpsEl.style.display='none'; }catch(_){} }   // bouton ⛶ plein écran + on masque le FPS (dev) sur mobile
-  { const ac=document.getElementById('tacc'); if(ac){ ac.style.display='flex';
-      const aon=e=>{ e.preventDefault(); e.stopPropagation(); try{ startAudio&&startAudio(); }catch(_){} keys['ArrowUp']=true; };
-      const aoff=e=>{ e.preventDefault(); keys['ArrowUp']=false; };
-      ac.addEventListener('touchstart',aon,{passive:false}); ac.addEventListener('touchend',aoff,{passive:false}); ac.addEventListener('touchcancel',aoff,{passive:false}); } }   // BOUTON ACCÉLÉRER (gauche)
-  const cv=document.getElementById('c'), joy=document.getElementById('joy'), knob=document.getElementById('joyk');
-  const R=64, DEAD=0.22; let active=false, tid=null, bx=0, by=0, _hintT=performance.now()+6000;
-  const clr=()=>{ _touchOn=false; _touchSteer=0; keys['ArrowUp']=false; keys['ArrowDown']=false; };
-  function place(t){ bx=t.clientX; by=t.clientY; joy.style.left=bx+'px'; joy.style.top=by+'px'; knob.style.transform='translate(0,0)'; joy.style.display='block'; }
-  function upd(t){ let dx=t.clientX-bx, dy=t.clientY-by; let d=Math.hypot(dx,dy);
-    if(d>R){ bx+=dx*(d-R)/d; by+=dy*(d-R)/d; joy.style.left=bx+'px'; joy.style.top=by+'px'; dx=t.clientX-bx; dy=t.clientY-by; d=R; }   // base TRAÎNANTE : la base suit le doigt → jamais besoin de relâcher pour repositionner
+  { const ac=document.getElementById('tacc'); if(ac){ ac.style.display='flex'; ac.style.pointerEvents='none'; } }   // bouton ACCÉLÉRER = repère visuel ; toute la zone gauche-bas accélère
+  const joy=document.getElementById('joy'), knob=document.getElementById('joyk');
+  const R=64, DEAD=0.22, _hintT=performance.now()+6000; let joyId=null, bx=0, by=0;
+  const findT=(ts,id)=>{ for(const t of ts){ if(t.identifier===id) return t; } return null; };
+  function place(){ joy.style.left=bx+'px'; joy.style.top=by+'px'; joy.style.display='block'; }
+  function release(){ joyId=null; joy.style.display='none'; _touchOn=false; _touchSteer=0; }
+  function steer(t){ let dx=t.clientX-bx, dy=t.clientY-by; let d=Math.hypot(dx,dy);
+    if(d>R){ bx+=dx*(d-R)/d; by+=dy*(d-R)/d; joy.style.left=bx+'px'; joy.style.top=by+'px'; dx=t.clientX-bx; dy=t.clientY-by; }   // base TRAÎNANTE
     knob.style.transform='translate('+dx.toFixed(1)+'px,'+dy.toFixed(1)+'px)';
-    const nx=dx/R;
-    let s=0; if(Math.abs(nx)>DEAD){ s=(nx-Math.sign(nx)*DEAD)/(1-DEAD); s=Math.sign(s)*Math.pow(Math.abs(s),1.8)*0.7; }   // braquage proportionnel + courbe expo (centre doux) + plafond ×0.7
-    _touchSteer=Math.max(-1,Math.min(1,s)); _touchOn=true;   // joystick = DIRECTION seule (l'accélération est sur le bouton gauche)
+    const nx=dx/R; let s=0; if(Math.abs(nx)>DEAD){ s=(nx-Math.sign(nx)*DEAD)/(1-DEAD); s=Math.sign(s)*Math.pow(Math.abs(s),1.8)*0.7; }
+    _touchSteer=Math.max(-1,Math.min(1,s)); _touchOn=true; }
+  function handle(e){ if(!_gameStarted) return;   // pendant le menu : on n'intercepte pas (laisse le menu fonctionner)
+    e.preventDefault(); try{ startAudio&&startAudio(); }catch(_){}
+    const W=document.documentElement.clientWidth||innerWidth, H=document.documentElement.clientHeight||innerHeight;
+    let accel=false, jt=null;
+    for(const t of e.touches){ if(t.clientY < H*0.16) continue;       // bande du haut = HUD / bouton ⛶ → ignorée
+      if(t.clientX < W*0.42) accel=true; else if(jt===null) jt=t; }   // GAUCHE = accélérer, DROITE = joystick (TOUS les doigts traités → multi-touch fiable)
+    keys['ArrowUp']=accel;
+    let cur=(joyId!==null)?findT(e.touches,joyId):null;
+    if(!cur && jt){ joyId=jt.identifier; bx=jt.clientX; by=jt.clientY; place(); cur=jt; }
+    if(cur) steer(cur); else release();
     if(th && th.style.display!=='none' && performance.now()>_hintT) th.style.display='none'; }
-  cv.addEventListener('touchstart',e=>{ e.preventDefault(); try{ startAudio&&startAudio(); }catch(_){} if(!active){ const t=e.changedTouches[0], W=document.documentElement.clientWidth||innerWidth; if(t.clientX < W*0.45) return;   // joystick = moitié DROITE (gauche = bouton accélérer)
-    active=true; tid=t.identifier; place(t); upd(t); } },{passive:false});
-  cv.addEventListener('touchmove',e=>{ e.preventDefault(); if(!active)return; for(const t of e.changedTouches){ if(t.identifier===tid){ upd(t); break; } } },{passive:false});
-  const end=e=>{ e.preventDefault(); if(!active)return; for(const t of e.changedTouches){ if(t.identifier===tid){ active=false; tid=null; joy.style.display='none'; clr(); break; } } };
-  cv.addEventListener('touchend',end,{passive:false});
-  cv.addEventListener('touchcancel',end,{passive:false});
+  document.addEventListener('touchstart',handle,{passive:false});
+  document.addEventListener('touchmove',handle,{passive:false});
+  document.addEventListener('touchend',handle,{passive:false});
+  document.addEventListener('touchcancel',handle,{passive:false});
 })();
 // ── PLEIN ÉCRAN + verrou PAYSAGE (bouton ⛶ explicite + tentative auto au 1er appui) ──
 function _goFullscreen(){ const el=document.documentElement, d=document;
