@@ -18,14 +18,17 @@
   #joy{display:none;position:fixed;z-index:25;width:140px;height:140px;margin:-70px 0 0 -70px;border-radius:50%;border:2px solid rgba(159,232,255,0.4);background:rgba(120,200,255,0.10);pointer-events:none}
   #joyk{position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;background:rgba(159,232,255,0.34);border:2px solid rgba(159,232,255,0.75);box-shadow:0 0 12px rgba(159,232,255,0.4)}
   #fsbtn{display:none;position:fixed;top:8px;right:10px;z-index:35;width:40px;height:40px;border-radius:8px;background:rgba(8,18,40,0.6);border:1px solid rgba(159,232,255,0.5);color:#bfe8ff;font-size:22px;line-height:40px;text-align:center;-webkit-tap-highlight-color:transparent;touch-action:none}
+  #tacc{display:none;position:fixed;left:5vmin;bottom:5vmin;z-index:25;width:19vmin;height:19vmin;max-width:128px;max-height:128px;min-width:84px;min-height:84px;border-radius:50%;background:rgba(120,255,160,0.13);border:2px solid rgba(120,255,160,0.55);color:#bfffd0;font:bold 8vmin monospace;display:flex;align-items:center;justify-content:center;text-shadow:0 1px 2px #000;-webkit-user-select:none;user-select:none;touch-action:none;-webkit-tap-highlight-color:transparent}
+  #tacc:active{background:rgba(120,255,160,0.36)}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="hud">STARS RACERS 3D — <b id="spd">0</b> km/h &nbsp; <span id="cam" style="color:#7aa">[C] caméra : poursuite</span> &nbsp; <span id="seg" style="color:#ffd23a">tronçon 0/227</span></div>
 <div id="help">← → tourner &nbsp;|&nbsp; ↑ accélérer &nbsp;|&nbsp; ↓ freiner &nbsp;|&nbsp; C = vue &nbsp;|&nbsp; <b>libre :</b> ZQSD/WASD + Espace/Maj, souris (clic) pour regarder</div>
-<div id="thint">Pose le pouce = volant &nbsp;•&nbsp; incline ◄► pour tourner &nbsp;•&nbsp; tire vers le bas = freiner</div>
+<div id="thint">Bouton gauche ▲ = accélérer &nbsp;•&nbsp; joystick à droite = tourner</div>
 <div id="rotate"><div class="ic">🔄</div><div>Tourne ton téléphone<br>en mode paysage</div></div>
+<div id="tacc">▲</div>
 <div id="joy"><div id="joyk"></div></div>
 <div id="fsbtn">⛶</div>
 <script src="three.min.js"></script>
@@ -1212,7 +1215,7 @@ let _PHITS=0;
 const hudC=document.createElement('canvas'); hudC.style.cssText='position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:5'; document.body.appendChild(hudC); const hx=hudC.getContext('2d');
 function resizeHud(){ hudC.width=innerWidth; hudC.height=innerHeight; } resizeHud(); addEventListener('resize',resizeHud);
 { const h=document.getElementById('hud'); if(h)h.style.display='none'; }
-let HUDpos=1; const CY='150,230,255';
+let HUDpos=1, _mobileHUD=false; const CY='150,230,255';   // _mobileHUD : layout HUD adapté tactile (POS+VITESSE remontées pour ne pas être cachées par les pouces)
 function _panel(x,y,w,h,cut){ hx.beginPath(); hx.moveTo(x,y); hx.lineTo(x+w-cut,y); hx.lineTo(x+w,y+cut); hx.lineTo(x+w,y+h); hx.lineTo(x+cut,y+h); hx.lineTo(x,y+h-cut); hx.closePath(); }
 function _hexBadge(cx,cy,r,col,val,label){ hx.beginPath(); for(let k=0;k<6;k++){ const a=Math.PI/6+k*Math.PI/3, px=cx+Math.cos(a)*r, py=cy+Math.sin(a)*r; if(k)hx.lineTo(px,py); else hx.moveTo(px,py); } hx.closePath(); hx.fillStyle='rgba(6,18,40,0.72)'; hx.fill(); hx.strokeStyle='rgba('+col+',0.85)'; hx.lineWidth=2; hx.stroke(); const vs=String(val); hx.textAlign='center'; hx.fillStyle='rgb('+col+')'; hx.font='bold '+(vs.length>2?Math.round(r*0.5):Math.round(r*0.85))+'px monospace'; hx.fillText(vs, cx, cy+r*0.30); hx.font='bold 10px monospace'; hx.fillStyle='rgba('+col+',0.7)'; hx.fillText(label, cx, cy-r*0.45); }
 function drawHUD2(){ const W=hudC.width,H=hudC.height,now=performance.now(); hx.clearRect(0,0,W,H); if(raceLock||raceFinished) return;
@@ -1220,12 +1223,12 @@ function drawHUD2(){ const W=hudC.width,H=hudC.height,now=performance.now(); hx.
   const kmh=Math.round(speed*3.6), spdN=Math.min(1,speed/MAXSPD);
   let ox=-steerVel*560 + Math.sin(now*0.0019)*7*spdN + (Math.random()-0.5)*camShake*1.4, oy=Math.sin(now*0.0026)*5.5*spdN + (Math.random()-0.5)*camShake*1.1;
   ox=Math.max(-38,Math.min(38,ox)); oy=Math.max(-28,Math.min(28,oy)); hx.save(); hx.scale(S,S); hx.translate(ox,oy);
-  { const w=384,h=78,cut=22,x=VW-w-34,y=VH-180; _panel(x,y,w,h,cut); hx.fillStyle='rgba(6,18,40,0.72)'; hx.fill(); hx.strokeStyle='rgba('+CY+',0.8)'; hx.lineWidth=3; hx.stroke();
+  { const w=384,h=78,cut=22,x=_mobileHUD?1000:VW-w-34,y=_mobileHUD?22:VH-180; _panel(x,y,w,h,cut); hx.fillStyle='rgba(6,18,40,0.72)'; hx.fill(); hx.strokeStyle='rgba('+CY+',0.8)'; hx.lineWidth=3; hx.stroke();
     hx.textAlign='right'; hx.font='bold 70px monospace'; hx.fillStyle='rgb('+CY+')'; hx.shadowColor='rgba('+CY+',0.6)'; hx.shadowBlur=16; hx.fillText(kmh, x+w-118, y+h-12); hx.shadowBlur=0;
     hx.font='bold 22px monospace'; hx.fillStyle='rgba('+CY+',0.6)'; hx.fillText('KM/H', x+w-18, y+h-16);
     const sgy=y+h+13, sf=Math.max(0,Math.min(1, kmh/520)); hx.fillStyle='rgba(10,24,48,0.7)'; hx.fillRect(x,sgy,w,20); const sg=hx.createLinearGradient(x,0,x+w,0); sg.addColorStop(0,'rgba('+CY+',0.85)'); sg.addColorStop(1,'rgba(180,250,255,0.95)'); hx.fillStyle=sg; hx.fillRect(x,sgy,w*sf,20); hx.strokeStyle='rgba('+CY+',0.5)'; hx.lineWidth=1; hx.strokeRect(x,sgy,w,20); hx.textAlign='left'; hx.font='bold 13px monospace'; hx.fillStyle='rgba('+CY+',0.55)'; hx.fillText('VITESSE', x, sgy-5); }
-  _hexBadge(VW-110, 116, 68, CY, Math.min(lapNum,TOTAL_LAPS)+'/'+TOTAL_LAPS, 'TOUR');
-  _hexBadge(128, VH-140, 80, HUDpos===1?'255,210,40':CY, HUDpos, 'POS');
+  _hexBadge(_mobileHUD?1500:VW-110, _mobileHUD?78:116, _mobileHUD?54:68, CY, Math.min(lapNum,TOTAL_LAPS)+'/'+TOTAL_LAPS, 'TOUR');
+  _hexBadge(_mobileHUD?806:128, _mobileHUD?78:VH-140, _mobileHUD?56:80, HUDpos===1?'255,210,40':CY, HUDpos, 'POS');
   { const x=34,w=340,h=54,cut=18,y=32, cur=lapStartMs===null?0:(now-lapStartMs); const pill=(yy,label,val,col)=>{ _panel(x,yy,w,h,cut); hx.fillStyle='rgba(6,18,40,0.6)'; hx.fill(); hx.strokeStyle='rgba('+col+',0.6)'; hx.lineWidth=2; hx.stroke(); hx.textAlign='left'; hx.font='bold 18px monospace'; hx.fillStyle='rgba('+col+',0.7)'; hx.fillText(label, x+22, yy+34); hx.textAlign='right'; hx.font='bold 32px monospace'; hx.fillStyle='rgb('+col+')'; hx.fillText(val, x+w-20, yy+37); }; pill(y,'TIME', fmtT(cur), CY); if(bestLap!=null) pill(y+h+14,'BEST', fmtT(bestLap), '90,255,160'); }
   hx.restore();
 }
@@ -1622,6 +1625,8 @@ loop();
 // ── COMMANDES TACTILES (smartphone) : écran scindé — un côté = tourner, les DEUX côtés = avancer ──
 (function(){ if(!('ontouchstart' in window) && !(navigator.maxTouchPoints>0) && !(window.matchMedia&&matchMedia('(pointer:coarse)').matches)) return;
   const th=document.getElementById('thint'); if(th) th.style.display='block';
+  _mobileHUD=true;   // HUD remonté pour ne pas être caché par les pouces
+  try{ mmCanvas.style.top='56px'; mmCanvas.style.bottom='auto'; mmCanvas.style.width='135px'; mmCanvas.style.height='135px'; }catch(_){}   // minimap en haut-droite (libère le bas pour le joystick)
   { const rot=document.getElementById('rotate'); if(rot) rot.classList.add('armed'); }   // affiche "tourne ton téléphone" en portrait
   { const h=document.getElementById('help'); if(h) h.style.display='none';                // HUD tactile : on masque les rappels CLAVIER inutiles sur mobile
     const c=document.getElementById('cam'); if(c) c.style.display='none'; }
@@ -1629,18 +1634,23 @@ loop();
       fb.addEventListener('touchstart',e=>{ e.preventDefault(); e.stopPropagation(); _goFullscreen(); },{passive:false});
       fb.addEventListener('click',e=>{ e.preventDefault(); _goFullscreen(); }); }
     try{ _fpsEl.style.display='none'; }catch(_){} }   // bouton ⛶ plein écran + on masque le FPS (dev) sur mobile
+  { const ac=document.getElementById('tacc'); if(ac){ ac.style.display='flex';
+      const aon=e=>{ e.preventDefault(); e.stopPropagation(); try{ startAudio&&startAudio(); }catch(_){} keys['ArrowUp']=true; };
+      const aoff=e=>{ e.preventDefault(); keys['ArrowUp']=false; };
+      ac.addEventListener('touchstart',aon,{passive:false}); ac.addEventListener('touchend',aoff,{passive:false}); ac.addEventListener('touchcancel',aoff,{passive:false}); } }   // BOUTON ACCÉLÉRER (gauche)
   const cv=document.getElementById('c'), joy=document.getElementById('joy'), knob=document.getElementById('joyk');
   const R=64, DEAD=0.22; let active=false, tid=null, bx=0, by=0, _hintT=performance.now()+6000;
   const clr=()=>{ _touchOn=false; _touchSteer=0; keys['ArrowUp']=false; keys['ArrowDown']=false; };
   function place(t){ bx=t.clientX; by=t.clientY; joy.style.left=bx+'px'; joy.style.top=by+'px'; knob.style.transform='translate(0,0)'; joy.style.display='block'; }
-  function upd(t){ let dx=t.clientX-bx, dy=t.clientY-by; const d=Math.hypot(dx,dy); if(d>R){ dx*=R/d; dy*=R/d; } knob.style.transform='translate('+dx.toFixed(1)+'px,'+dy.toFixed(1)+'px)';
-    const nx=dx/R, ny=dy/R;
-    let s=0; if(Math.abs(nx)>DEAD){ s=(nx-Math.sign(nx)*DEAD)/(1-DEAD); s=Math.sign(s)*Math.pow(Math.abs(s),1.8)*0.7; }   // VOLANT : proportionnel + COURBE expo (centre doux) + plafond ×0.7 (moins sensible)
-    _touchSteer=Math.max(-1,Math.min(1,s)); _touchOn=true;   // incliner à droite = tourner à droite
-    keys['ArrowUp']=(ny<0.5);     // on accélère tant qu'on tient le volant…
-    keys['ArrowDown']=(ny>0.5);   // …sauf si on tire vers le bas = frein
+  function upd(t){ let dx=t.clientX-bx, dy=t.clientY-by; let d=Math.hypot(dx,dy);
+    if(d>R){ bx+=dx*(d-R)/d; by+=dy*(d-R)/d; joy.style.left=bx+'px'; joy.style.top=by+'px'; dx=t.clientX-bx; dy=t.clientY-by; d=R; }   // base TRAÎNANTE : la base suit le doigt → jamais besoin de relâcher pour repositionner
+    knob.style.transform='translate('+dx.toFixed(1)+'px,'+dy.toFixed(1)+'px)';
+    const nx=dx/R;
+    let s=0; if(Math.abs(nx)>DEAD){ s=(nx-Math.sign(nx)*DEAD)/(1-DEAD); s=Math.sign(s)*Math.pow(Math.abs(s),1.8)*0.7; }   // braquage proportionnel + courbe expo (centre doux) + plafond ×0.7
+    _touchSteer=Math.max(-1,Math.min(1,s)); _touchOn=true;   // joystick = DIRECTION seule (l'accélération est sur le bouton gauche)
     if(th && th.style.display!=='none' && performance.now()>_hintT) th.style.display='none'; }
-  cv.addEventListener('touchstart',e=>{ e.preventDefault(); try{ startAudio&&startAudio(); }catch(_){} if(!active){ const t=e.changedTouches[0]; active=true; tid=t.identifier; place(t); upd(t); } },{passive:false});
+  cv.addEventListener('touchstart',e=>{ e.preventDefault(); try{ startAudio&&startAudio(); }catch(_){} if(!active){ const t=e.changedTouches[0], W=document.documentElement.clientWidth||innerWidth; if(t.clientX < W*0.45) return;   // joystick = moitié DROITE (gauche = bouton accélérer)
+    active=true; tid=t.identifier; place(t); upd(t); } },{passive:false});
   cv.addEventListener('touchmove',e=>{ e.preventDefault(); if(!active)return; for(const t of e.changedTouches){ if(t.identifier===tid){ upd(t); break; } } },{passive:false});
   const end=e=>{ e.preventDefault(); if(!active)return; for(const t of e.changedTouches){ if(t.identifier===tid){ active=false; tid=null; joy.style.display='none'; clr(); break; } } };
   cv.addEventListener('touchend',end,{passive:false});
