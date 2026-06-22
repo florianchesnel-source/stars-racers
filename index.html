@@ -1389,7 +1389,11 @@ function drawMinimap(){ mmx.clearRect(0,0,MM,MM);
   mmx.save(); mmx.translate(mmPX(pwx),mmPY(pwy)); mmx.rotate(heading);
   mmx.fillStyle='#9fe8ff'; mmx.strokeStyle='#06121e'; mmx.lineWidth=1; mmx.beginPath(); mmx.moveTo(7,0); mmx.lineTo(-4.5,-4); mmx.lineTo(-2,0); mmx.lineTo(-4.5,4); mmx.closePath(); mmx.fill(); mmx.stroke();
   mmx.restore(); }
+let _capAcc=0,_capLast=performance.now(); const _CAPSTEP=1000/60;   // verrou 60 Hz : la physique avance par pas fixes → vitesse identique sur écran 60/90/120 Hz
 function loop(){
+  { const _n=performance.now(); let _dt=_n-_capLast; _capLast=_n; if(_dt>50)_dt=50; _capAcc+=_dt;
+    if(_capAcc<_CAPSTEP){ requestAnimationFrame(loop); return; }   // pas encore l'heure d'un pas 60 Hz → on saute cette frame (écran rapide)
+    _capAcc-=_CAPSTEP; if(_capAcc>_CAPSTEP)_capAcc=_CAPSTEP; }      // un seul pas par frame (anti-emballement)
   if(SLOW>1){ _slowCtr++; if(_slowCtr<SLOW){ if(camMode!==2)camera.lookAt(camLookPt); renderer.render(scene,camera); requestAnimationFrame(loop); return; } _slowCtr=0; }
   _decorT+=0.016; updateDecor(_decorT); updFPS(); updateBots(); drawMinimap();
   loopBoostTex.offset.y -= 0.012; // défilement des chevrons (boost pad)
