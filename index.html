@@ -20,6 +20,15 @@
   #fsbtn{display:none;position:fixed;top:8px;right:10px;z-index:35;width:40px;height:40px;border-radius:8px;background:rgba(8,18,40,0.6);border:1px solid rgba(159,232,255,0.5);color:#bfe8ff;font-size:22px;line-height:40px;text-align:center;-webkit-tap-highlight-color:transparent;touch-action:none}
   #tacc{display:none;position:fixed;left:5vmin;bottom:5vmin;z-index:25;width:19vmin;height:19vmin;max-width:128px;max-height:128px;min-width:84px;min-height:84px;border-radius:50%;background:rgba(120,255,160,0.13);border:2px solid rgba(120,255,160,0.55);color:#bfffd0;font:bold 8vmin monospace;display:flex;align-items:center;justify-content:center;text-shadow:0 1px 2px #000;-webkit-user-select:none;user-select:none;touch-action:none;-webkit-tap-highlight-color:transparent}
   #tacc:active{background:rgba(120,255,160,0.36)}
+  #menu{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3.5vh;background:rgba(6,12,24,0.80);color:#bfe8ff;font-family:monospace;text-align:center;padding:4vh 4vw;-webkit-tap-highlight-color:transparent;cursor:pointer}
+  #menu .mtitle{font-size:min(9vw,64px);font-weight:bold;letter-spacing:3px;color:#9fe8ff;text-shadow:0 0 18px rgba(120,200,255,0.6),0 2px 4px #000}
+  #menu .msub{font-size:min(4.2vw,22px);color:#7fd0ff}
+  #mstart .msub{animation:mpulse 1.4s ease-in-out infinite}
+  @keyframes mpulse{0%,100%{opacity:0.35}50%{opacity:1}}
+  #mtracks .mcard{margin-top:2.4vh;padding:16px 42px;border:2px solid rgba(159,232,255,0.5);border-radius:12px;background:rgba(8,20,44,0.72);min-width:230px}
+  #mtracks .mcard:active{background:rgba(40,90,150,0.6);border-color:#bfe8ff}
+  #mtracks .mcn{font-size:min(6.5vw,30px);font-weight:bold;color:#ffd23a;letter-spacing:2px}
+  #mtracks .mcd{font-size:min(3.6vw,16px);color:#9fe8ff;opacity:0.8;margin-top:5px}
 </style>
 </head>
 <body>
@@ -31,6 +40,14 @@
 <div id="tacc">▲</div>
 <div id="joy"><div id="joyk"></div></div>
 <div id="fsbtn">⛶</div>
+<div id="menu">
+  <div class="mtitle">STARS RACERS 3D</div>
+  <div id="mstart"><div class="msub">Appuie sur l'écran &nbsp;•&nbsp; ou une touche pour commencer</div></div>
+  <div id="mtracks" style="display:none">
+    <div class="msub">Choisis ton circuit</div>
+    <div class="mcard" data-track="1"><div class="mcn">CIRCUIT 1</div><div class="mcd">Neon City — 3 tours</div></div>
+  </div>
+</div>
 <script src="three.min.js"></script>
 <script>window.THREE||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>')</script>
 <script src="tex3d_data.js"></script>
@@ -1206,7 +1223,7 @@ function updateBots(){ const tt=performance.now()*0.001; const _plProg=(pRankLap
 }
 const TOTAL_LAPS=3;
 const CPS=[0.2,0.4,0.6,0.8]; let lapNum=1, pRankLap=1, raceStartMs=null, lapStartMs=null, bestLap=null, lastLap=null, racePrevP=0, nextCp=0, raceFinished=false, raceFinalMs=0;
-let countdownStart=performance.now(), raceLock=true; let SLOW=1,_slowCtr=0;
+let countdownStart=performance.now(), raceLock=true, _gameStarted=false; let SLOW=1,_slowCtr=0;
 const cdEl=document.createElement('div'); cdEl.style.cssText='position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);z-index:60;font:bold 96px monospace;color:#bfe8ff;text-shadow:0 0 18px #000,0 0 8px #000;pointer-events:none;'; document.body.appendChild(cdEl);
 const raceHUD=document.createElement('div');
 raceHUD.style.cssText='position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:50;font:bold 14px monospace;color:#bfe8ff;text-shadow:0 0 4px #000,0 0 2px #000;text-align:center;line-height:1.55;pointer-events:none;';
@@ -1404,6 +1421,7 @@ function loop(){
   loopBoostTex.offset.y -= 0.012; // défilement des chevrons (boost pad)
   if(falling){ fallUpdate(); requestAnimationFrame(loop); return; } // mode chute (décrochage)
   if(inLoop){ loopUpdate(); requestAnimationFrame(loop); return; } // mode looping : physique dédiée
+  if(!_gameStarted){ countdownStart=performance.now(); }   // MENU : tant qu'on n'a pas lancé, le décompte reste figé sur 3 (vaisseau immobile sur la grille = fond du menu)
   updateCountdown();
   // --- conduite hover-racer : braquage avec inertie (grip) ---
   const trefY=(shipY-HOVER)/ELEV; // altitude actuelle du vaisseau (pour choisir la bonne route aux croisements)
@@ -1661,6 +1679,16 @@ function _goFullscreen(){ const el=document.documentElement, d=document;
   const lock=()=>{ try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(_){} };
   try{ if(!d.fullscreenElement && !d.webkitFullscreenElement){ const rf=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen; if(rf){ const p=rf.call(el); if(p&&p.then) p.then(lock).catch(lock); else lock(); } else lock(); } else lock(); }catch(_){ lock(); } }
 (function(){ let done=false; function once(){ if(done)return; done=true; _goFullscreen(); removeEventListener('pointerdown',once); } addEventListener('pointerdown',once); })();
+// ── MENU d'accueil : appui (= plein écran) → choix du circuit → départ ──
+(function(){ const menu=document.getElementById('menu'); if(!menu)return;
+  const mstart=document.getElementById('mstart'), mtracks=document.getElementById('mtracks'); let state=0;
+  function toTracks(){ if(state!==0)return; state=1; try{ _goFullscreen(); }catch(_){} if(mstart)mstart.style.display='none'; if(mtracks)mtracks.style.display='block'; }
+  function startGame(){ if(state>=2)return; state=2; menu.style.display='none'; _gameStarted=true; countdownStart=performance.now(); }
+  menu.addEventListener('pointerdown',e=>{ if(state===0){ e.preventDefault(); toTracks(); } },{passive:false});
+  addEventListener('keydown',e=>{ if(state===0) toTracks(); else if(state===1 && (e.code==='Enter'||e.code==='Space'||e.code==='ArrowUp')) startGame(); });
+  const card=mtracks&&mtracks.querySelector('.mcard');
+  if(card){ const sel=e=>{ e.preventDefault(); e.stopPropagation(); startGame(); }; card.addEventListener('click',sel); card.addEventListener('touchstart',sel,{passive:false}); }
+})();
 </script>
 </body>
 </html>
