@@ -11,6 +11,10 @@
   #hud b{color:#ffd23a}
   #help{position:fixed;left:12px;bottom:10px;color:#7aa;font-size:12px;text-shadow:0 1px 2px #000}
   #thint{display:none;position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:30;color:#9fe8ff;font:bold 13px monospace;text-shadow:0 1px 3px #000;opacity:0.85;pointer-events:none;text-align:center}
+  #rotate{display:none;position:fixed;inset:0;z-index:100;background:#0a0a12;color:#9fe8ff;flex-direction:column;align-items:center;justify-content:center;gap:3vh;text-align:center;font:bold 6vw monospace;text-shadow:0 1px 3px #000}
+  #rotate .ic{font-size:16vw;animation:rotk 1.7s ease-in-out infinite}
+  @keyframes rotk{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(80deg)}}
+  @media (orientation:portrait){ #rotate.armed{display:flex} }
 </style>
 </head>
 <body>
@@ -18,6 +22,7 @@
 <div id="hud">STARS RACERS 3D — <b id="spd">0</b> km/h &nbsp; <span id="cam" style="color:#7aa">[C] caméra : poursuite</span> &nbsp; <span id="seg" style="color:#ffd23a">tronçon 0/227</span></div>
 <div id="help">← → tourner &nbsp;|&nbsp; ↑ accélérer &nbsp;|&nbsp; ↓ freiner &nbsp;|&nbsp; C = vue &nbsp;|&nbsp; <b>libre :</b> ZQSD/WASD + Espace/Maj, souris (clic) pour regarder</div>
 <div id="thint">◄ gauche &nbsp;/&nbsp; droite ► pour tourner &nbsp;•&nbsp; les deux côtés = avancer</div>
+<div id="rotate"><div class="ic">🔄</div><div>Tourne ton téléphone<br>en mode paysage</div></div>
 <script src="three.min.js"></script>
 <script>window.THREE||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>')</script>
 <script src="tex3d_data.js"></script>
@@ -1603,6 +1608,7 @@ loop();
 // ── COMMANDES TACTILES (smartphone) : écran scindé — un côté = tourner, les DEUX côtés = avancer ──
 (function(){ if(!('ontouchstart' in window) && !(navigator.maxTouchPoints>0)) return;
   const th=document.getElementById('thint'); if(th) th.style.display='block';
+  { const rot=document.getElementById('rotate'); if(rot) rot.classList.add('armed'); }   // affiche "tourne ton téléphone" en portrait
   let _hintT=performance.now()+5000;   // l'indice disparaît après ~5s
   function evalTouches(touches){ let L=false,R=false; const W=document.documentElement.clientWidth||innerWidth;
     for(const t of touches){ if(t.clientX < W/2) L=true; else R=true; }
@@ -1617,6 +1623,15 @@ loop();
   cv.addEventListener('touchmove',on,{passive:false});
   cv.addEventListener('touchend',on,{passive:false});
   cv.addEventListener('touchcancel',on,{passive:false});
+})();
+// ── PLEIN ÉCRAN + verrou PAYSAGE au 1er appui (geste utilisateur requis) ──
+(function(){ let done=false;
+  function fs(){ if(done)return; done=true;
+    const el=document.documentElement, rf=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;
+    const lock=()=>{ try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(_){} };
+    try{ if(rf){ const p=rf.call(el); if(p&&p.then) p.then(lock).catch(lock); else lock(); } else lock(); }catch(_){ lock(); }
+    removeEventListener('pointerdown',fs); }
+  addEventListener('pointerdown',fs);
 })();
 </script>
 </body>
