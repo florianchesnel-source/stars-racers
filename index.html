@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <title>Stars Racers 3D — PS1 (Phase 1)</title>
 <style>
-  html,body{margin:0;height:100%;background:#0a0a12;overflow:hidden;font-family:monospace}
-  #c{position:fixed;inset:0;width:100vw;height:100vh;image-rendering:pixelated;image-rendering:crisp-edges;}
+  html,body{margin:0;height:100%;background:#0a0a12;overflow:hidden;font-family:monospace;touch-action:none;overscroll-behavior:none}
+  #c{position:fixed;inset:0;width:100vw;height:100vh;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
   #hud{position:fixed;left:12px;top:10px;color:#9fe8ff;font-size:13px;letter-spacing:1px;text-shadow:0 1px 2px #000;pointer-events:none}
   #hud b{color:#ffd23a}
   #help{position:fixed;left:12px;bottom:10px;color:#7aa;font-size:12px;text-shadow:0 1px 2px #000}
@@ -1421,8 +1421,8 @@ function loop(){
   loopBoostTex.offset.y -= 0.012; // défilement des chevrons (boost pad)
   if(falling){ fallUpdate(); requestAnimationFrame(loop); return; } // mode chute (décrochage)
   if(inLoop){ loopUpdate(); requestAnimationFrame(loop); return; } // mode looping : physique dédiée
-  if(!_gameStarted){ countdownStart=performance.now(); }   // MENU : tant qu'on n'a pas lancé, le décompte reste figé sur 3 (vaisseau immobile sur la grille = fond du menu)
-  updateCountdown();
+  if(!_gameStarted){ countdownStart=performance.now(); cdEl.style.display='none'; }   // MENU : décompte gelé ET caché (vaisseau immobile sur la grille = fond du menu)
+  else updateCountdown();
   // --- conduite hover-racer : braquage avec inertie (grip) ---
   const trefY=(shipY-HOVER)/ELEV; // altitude actuelle du vaisseau (pour choisir la bonne route aux croisements)
   const accel=keys['ArrowUp']?(0.7+(MAXSPD-speed)*0.015):(keys['ArrowDown']?-3.2:-0.6);
@@ -1678,7 +1678,7 @@ loop();
 function _goFullscreen(){ const el=document.documentElement, d=document;
   const lock=()=>{ try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(_){} };
   try{ if(!d.fullscreenElement && !d.webkitFullscreenElement){ const rf=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen; if(rf){ const p=rf.call(el); if(p&&p.then) p.then(lock).catch(lock); else lock(); } else lock(); } else lock(); }catch(_){ lock(); } }
-(function(){ let done=false; function once(){ if(done)return; done=true; _goFullscreen(); removeEventListener('pointerdown',once); } addEventListener('pointerdown',once); })();
+{ const _fb=document.getElementById('fsbtn'); if(_fb){ _fb.style.display='block'; _fb.addEventListener('click',function(e){ e.preventDefault(); _goFullscreen(); }); } }   // bouton ⛶ cliquable partout (PC + mobile)
 // ── MENU d'accueil : appui (= plein écran) → choix du circuit → départ ──
 (function(){ const menu=document.getElementById('menu'); if(!menu)return;
   const mstart=document.getElementById('mstart'), mtracks=document.getElementById('mtracks'); let state=0;
