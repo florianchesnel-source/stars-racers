@@ -873,7 +873,7 @@ let shipY=0,vy=0,prevHzY=0,physInit=false,onGroundPrev=true,_airFrames=0; const 
 let _prevLf2=0; const GUTTER_LAUNCH=1.6;   // wall-ride : gain de décollage en quittant le rebord de gouttière à grande vitesse
 const PGRAV=0.125;   // gravité JOUEUR (bien plus lourde que les bots GRAV=0.05) : retombée vive, vaisseau lourd en l'air
 // ── état du looping ──
-let inLoop=false, curLoop=null, loopTheta=0, loopHead=0, loopCool=0, prevSeg=0, loopLat=0, loopSteer=0, camBlend=0; const SLOPE_LOOP=0.83; // gravité projetée (conduite libre dans le looping)
+let inLoop=false, curLoop=null, loopTheta=0, loopHead=0, loopCool=0, prevSeg=0, loopLat=0, loopSteer=0, camBlend=0, loopFwd=true; const SLOPE_LOOP=0.83; // gravité projetée (conduite libre dans le looping)
 let falling=false, fallFrames=0, fallLoop=null; const fallVel=new THREE.Vector3(); const FALL_G=0.06; const STICK_G=0.05; // chute après décrochage du looping
 const LOOP_BOOST=95; // BOOST PAD du looping : vitesse minimale garantie pendant la boucle
 const _transOff=new THREE.Vector3(), _capPos=new THREE.Vector3(); let _needEntryOff=false, _needExitOff=false; // résorption d'écart aux transitions (anti-saut)
@@ -931,6 +931,8 @@ function loopUpdate(){ shipBlob.visible=false; // CONDUITE LIBRE sur la surface 
   let turn=(keys['ArrowRight']?1:0)-(keys['ArrowLeft']?1:0); if(_touchOn) turn=_touchSteer;
   loopSteer += turn*0.0030 - loopSteer*0.14;
   loopHead += loopSteer*Math.min(1,speed/28);
+  { const _ref=loopFwd?0:Math.PI; let _dev=Math.atan2(Math.sin(loopHead-_ref),Math.cos(loopHead-_ref));   // écart au sens d'ENTRÉE (avant ou contre-sens)
+    if(_dev>1.2){_dev=1.2; loopSteer=Math.min(loopSteer,0);} else if(_dev<-1.2){_dev=-1.2; loopSteer=Math.max(loopSteer,0);} loopHead=_ref+_dev; }   // borne l'écart → garde le sens d'entrée, jamais de demi-tour accidentel (mais le contre-sens volontaire reste possible)
   const cph=Math.cos(loopHead), sph=Math.sin(loopHead);
   // gravité projetée sur la direction de vitesse (latéral horizontal → composante verticale = _lt.y*cosφ)
   speed=Math.max(0,Math.min(MAXSPD, speed - _lt.y*cph*SLOPE_LOOP)); // monte = ralentit, descend = accélère → élan nécessaire
@@ -1594,7 +1596,7 @@ function loop(){
       const _fwdCross = prevSeg<L.z0 && nt.seg>=L.z0 && nt.seg<=L.z1;   // sens normal
       const _bwdCross = prevSeg>L.z1 && nt.seg<=L.z1 && nt.seg>=L.z0;   // contre-sens
       if(_fwdCross||_bwdCross){
-        beginXfade(); inLoop=true; curLoop=L; skLon=skRon=false;
+        beginXfade(); inLoop=true; curLoop=L; skLon=skRon=false; loopFwd=_fwdCross;   // mémorise le sens d'entrée (avant / contre-sens)
         if(_fwdCross){ const fwd2=(wx*WORLD-L.baseStart.x)*L.f0.x+(wy*WORLD-L.baseStart.z)*L.f0.z;
           const rate=LOOP_R+(L.dir.x*L.f0.x+L.dir.z*L.f0.z)/TWO_PI;
           loopTheta=Math.max(0.001,Math.min(0.4, fwd2/rate)); }              // départ près de θ=0
