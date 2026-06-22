@@ -15,14 +15,17 @@
   #rotate .ic{font-size:16vw;animation:rotk 1.7s ease-in-out infinite}
   @keyframes rotk{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(80deg)}}
   @media (orientation:portrait){ #rotate.armed{display:flex} }
+  #joy{display:none;position:fixed;z-index:25;width:140px;height:140px;margin:-70px 0 0 -70px;border-radius:50%;border:2px solid rgba(159,232,255,0.4);background:rgba(120,200,255,0.10);pointer-events:none}
+  #joyk{position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;background:rgba(159,232,255,0.34);border:2px solid rgba(159,232,255,0.75);box-shadow:0 0 12px rgba(159,232,255,0.4)}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="hud">STARS RACERS 3D — <b id="spd">0</b> km/h &nbsp; <span id="cam" style="color:#7aa">[C] caméra : poursuite</span> &nbsp; <span id="seg" style="color:#ffd23a">tronçon 0/227</span></div>
 <div id="help">← → tourner &nbsp;|&nbsp; ↑ accélérer &nbsp;|&nbsp; ↓ freiner &nbsp;|&nbsp; C = vue &nbsp;|&nbsp; <b>libre :</b> ZQSD/WASD + Espace/Maj, souris (clic) pour regarder</div>
-<div id="thint">◄ gauche &nbsp;/&nbsp; droite ► pour tourner &nbsp;•&nbsp; les deux côtés = avancer</div>
+<div id="thint">Pose le pouce = volant &nbsp;•&nbsp; incline ◄► pour tourner &nbsp;•&nbsp; tire vers le bas = freiner</div>
 <div id="rotate"><div class="ic">🔄</div><div>Tourne ton téléphone<br>en mode paysage</div></div>
+<div id="joy"><div id="joyk"></div></div>
 <script src="three.min.js"></script>
 <script>window.THREE||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>')</script>
 <script src="tex3d_data.js"></script>
@@ -863,7 +866,7 @@ function groundAtWin(px,py,refY,c,win){
   const lf=Math.max(-1,Math.min(1,rlat));
   return rhz*ELEV+rhw*GUTTER_FRAC*lf*lf*ELEV;
 }
-let steerVel=0,latVel=0,pitch=0; let hitRoll=0, hitPitch=0, controlLoss=0, hitYawVel=0; let skLon=false,skRon=false,skLx=0,skLy=0,skRx=0,skRy=0,skLwx=0,skLwy=0,skRwx=0,skRwy=0; const PITCH_SIGN=-1, ROLL_SIGN=1; // si un axe part à l'envers → inverser le signe
+let steerVel=0,latVel=0,pitch=0,_touchOn=false,_touchSteer=0; let hitRoll=0, hitPitch=0, controlLoss=0, hitYawVel=0; let skLon=false,skRon=false,skLx=0,skLy=0,skRx=0,skRy=0,skLwx=0,skLwy=0,skRwx=0,skRwy=0; const PITCH_SIGN=-1, ROLL_SIGN=1; // si un axe part à l'envers → inverser le signe
 let shipY=0,vy=0,prevHzY=0,physInit=false,onGroundPrev=true,_airFrames=0; const GRAV=0.05, HOVER=1.4, VMAX=2.5; // physique verticale (saut / plané)
 let _prevLf2=0; const GUTTER_LAUNCH=1.6;   // wall-ride : gain de décollage en quittant le rebord de gouttière à grande vitesse
 const PGRAV=0.125;   // gravité JOUEUR (bien plus lourde que les bots GRAV=0.05) : retombée vive, vaisseau lourd en l'air
@@ -923,7 +926,7 @@ function loopUpdate(){ shipBlob.visible=false; // CONDUITE LIBRE sur la surface 
   speed=Math.min(MAXSPD, Math.max(speed, LOOP_BOOST)); // BOOST PAD : la boucle te propulse → toujours assez d'élan
   loopTanAt(curLoop,loopTheta,_lt);
   // braquage → fait tourner le cap du vaisseau (comme sur le plat)
-  const turn=(keys['ArrowRight']?1:0)-(keys['ArrowLeft']?1:0);
+  let turn=(keys['ArrowRight']?1:0)-(keys['ArrowLeft']?1:0); if(_touchOn) turn=_touchSteer;
   loopSteer += turn*0.0030 - loopSteer*0.14;
   loopHead += loopSteer*Math.min(1,speed/28);
   const cph=Math.cos(loopHead), sph=Math.sin(loopHead);
@@ -1209,15 +1212,16 @@ let HUDpos=1; const CY='150,230,255';
 function _panel(x,y,w,h,cut){ hx.beginPath(); hx.moveTo(x,y); hx.lineTo(x+w-cut,y); hx.lineTo(x+w,y+cut); hx.lineTo(x+w,y+h); hx.lineTo(x+cut,y+h); hx.lineTo(x,y+h-cut); hx.closePath(); }
 function _hexBadge(cx,cy,r,col,val,label){ hx.beginPath(); for(let k=0;k<6;k++){ const a=Math.PI/6+k*Math.PI/3, px=cx+Math.cos(a)*r, py=cy+Math.sin(a)*r; if(k)hx.lineTo(px,py); else hx.moveTo(px,py); } hx.closePath(); hx.fillStyle='rgba(6,18,40,0.72)'; hx.fill(); hx.strokeStyle='rgba('+col+',0.85)'; hx.lineWidth=2; hx.stroke(); const vs=String(val); hx.textAlign='center'; hx.fillStyle='rgb('+col+')'; hx.font='bold '+(vs.length>2?Math.round(r*0.5):Math.round(r*0.85))+'px monospace'; hx.fillText(vs, cx, cy+r*0.30); hx.font='bold 10px monospace'; hx.fillStyle='rgba('+col+',0.7)'; hx.fillText(label, cx, cy-r*0.45); }
 function drawHUD2(){ const W=hudC.width,H=hudC.height,now=performance.now(); hx.clearRect(0,0,W,H); if(raceLock||raceFinished) return;
+  const S=Math.min(1,W/1920), VW=W/S, VH=H/S;   // HUD dessiné en espace VIRTUEL 1920px puis réduit à l'écran → proportions constantes (PC comme mobile)
   const kmh=Math.round(speed*3.6), spdN=Math.min(1,speed/MAXSPD);
   let ox=-steerVel*560 + Math.sin(now*0.0019)*7*spdN + (Math.random()-0.5)*camShake*1.4, oy=Math.sin(now*0.0026)*5.5*spdN + (Math.random()-0.5)*camShake*1.1;
-  ox=Math.max(-38,Math.min(38,ox)); oy=Math.max(-28,Math.min(28,oy)); hx.save(); hx.translate(ox,oy);
-  { const w=384,h=78,cut=22,x=W-w-34,y=H-180; _panel(x,y,w,h,cut); hx.fillStyle='rgba(6,18,40,0.72)'; hx.fill(); hx.strokeStyle='rgba('+CY+',0.8)'; hx.lineWidth=3; hx.stroke();
+  ox=Math.max(-38,Math.min(38,ox)); oy=Math.max(-28,Math.min(28,oy)); hx.save(); hx.scale(S,S); hx.translate(ox,oy);
+  { const w=384,h=78,cut=22,x=VW-w-34,y=VH-180; _panel(x,y,w,h,cut); hx.fillStyle='rgba(6,18,40,0.72)'; hx.fill(); hx.strokeStyle='rgba('+CY+',0.8)'; hx.lineWidth=3; hx.stroke();
     hx.textAlign='right'; hx.font='bold 70px monospace'; hx.fillStyle='rgb('+CY+')'; hx.shadowColor='rgba('+CY+',0.6)'; hx.shadowBlur=16; hx.fillText(kmh, x+w-118, y+h-12); hx.shadowBlur=0;
     hx.font='bold 22px monospace'; hx.fillStyle='rgba('+CY+',0.6)'; hx.fillText('KM/H', x+w-18, y+h-16);
     const sgy=y+h+13, sf=Math.max(0,Math.min(1, kmh/520)); hx.fillStyle='rgba(10,24,48,0.7)'; hx.fillRect(x,sgy,w,20); const sg=hx.createLinearGradient(x,0,x+w,0); sg.addColorStop(0,'rgba('+CY+',0.85)'); sg.addColorStop(1,'rgba(180,250,255,0.95)'); hx.fillStyle=sg; hx.fillRect(x,sgy,w*sf,20); hx.strokeStyle='rgba('+CY+',0.5)'; hx.lineWidth=1; hx.strokeRect(x,sgy,w,20); hx.textAlign='left'; hx.font='bold 13px monospace'; hx.fillStyle='rgba('+CY+',0.55)'; hx.fillText('VITESSE', x, sgy-5); }
-  _hexBadge(W-110, 116, 68, CY, Math.min(lapNum,TOTAL_LAPS)+'/'+TOTAL_LAPS, 'TOUR');
-  _hexBadge(128, H-140, 80, HUDpos===1?'255,210,40':CY, HUDpos, 'POS');
+  _hexBadge(VW-110, 116, 68, CY, Math.min(lapNum,TOTAL_LAPS)+'/'+TOTAL_LAPS, 'TOUR');
+  _hexBadge(128, VH-140, 80, HUDpos===1?'255,210,40':CY, HUDpos, 'POS');
   { const x=34,w=340,h=54,cut=18,y=32, cur=lapStartMs===null?0:(now-lapStartMs); const pill=(yy,label,val,col)=>{ _panel(x,yy,w,h,cut); hx.fillStyle='rgba(6,18,40,0.6)'; hx.fill(); hx.strokeStyle='rgba('+col+',0.6)'; hx.lineWidth=2; hx.stroke(); hx.textAlign='left'; hx.font='bold 18px monospace'; hx.fillStyle='rgba('+col+',0.7)'; hx.fillText(label, x+22, yy+34); hx.textAlign='right'; hx.font='bold 32px monospace'; hx.fillStyle='rgb('+col+')'; hx.fillText(val, x+w-20, yy+37); }; pill(y,'TIME', fmtT(cur), CY); if(bestLap!=null) pill(y+h+14,'BEST', fmtT(bestLap), '90,255,160'); }
   hx.restore();
 }
@@ -1401,7 +1405,7 @@ function loop(){
     speed=Math.max(0,Math.min(MAXSPD, speed - sl*SLOPE_G));
   }
   if(raceLock){ speed=0; steerVel=0; }   // bloqué pendant le décompte
-  const turn=(keys['ArrowRight']?1:0)-(keys['ArrowLeft']?1:0); // sens corrigé (direction + inclinaison)
+  let turn=(keys['ArrowRight']?1:0)-(keys['ArrowLeft']?1:0); if(_touchOn) turn=_touchSteer; // direction : clavier (tout-ou-rien) OU volant tactile ANALOGIQUE (proportionnel)
   steerVel+=(turn*0.0030-steerVel*0.14);
   heading+=steerVel*Math.min(1,speed/28);
   if(controlLoss>0){ heading+=hitYawVel; steerVel*=0.72; speed*=0.992; hitYawVel*=0.86; controlLoss--; } else { hitYawVel*=0.92; }
@@ -1606,23 +1610,27 @@ function loop(){
 }
 loop();
 // ── COMMANDES TACTILES (smartphone) : écran scindé — un côté = tourner, les DEUX côtés = avancer ──
-(function(){ if(!('ontouchstart' in window) && !(navigator.maxTouchPoints>0)) return;
+(function(){ if(!('ontouchstart' in window) && !(navigator.maxTouchPoints>0) && !(window.matchMedia&&matchMedia('(pointer:coarse)').matches)) return;
   const th=document.getElementById('thint'); if(th) th.style.display='block';
   { const rot=document.getElementById('rotate'); if(rot) rot.classList.add('armed'); }   // affiche "tourne ton téléphone" en portrait
-  let _hintT=performance.now()+5000;   // l'indice disparaît après ~5s
-  function evalTouches(touches){ let L=false,R=false; const W=document.documentElement.clientWidth||innerWidth;
-    for(const t of touches){ if(t.clientX < W/2) L=true; else R=true; }
-    keys['ArrowLeft']=false; keys['ArrowRight']=false; keys['ArrowUp']=false;
-    if(L&&R){ keys['ArrowUp']=true; }            // les deux côtés = avancer (tout droit)
-    else if(L){ keys['ArrowLeft']=true; }         // moitié gauche = tourner à gauche
-    else if(R){ keys['ArrowRight']=true; }        // moitié droite = tourner à droite
-    if(th && th.style.display!=='none' && performance.now()>_hintT){ th.style.display='none'; } }
-  const cv=document.getElementById('c');
-  const on=e=>{ e.preventDefault(); try{ startAudio&&startAudio(); }catch(_){} evalTouches(e.touches); };
-  cv.addEventListener('touchstart',on,{passive:false});
-  cv.addEventListener('touchmove',on,{passive:false});
-  cv.addEventListener('touchend',on,{passive:false});
-  cv.addEventListener('touchcancel',on,{passive:false});
+  { const h=document.getElementById('help'); if(h) h.style.display='none';                // HUD tactile : on masque les rappels CLAVIER inutiles sur mobile
+    const c=document.getElementById('cam'); if(c) c.style.display='none'; }
+  const cv=document.getElementById('c'), joy=document.getElementById('joy'), knob=document.getElementById('joyk');
+  const R=64, DEAD=0.22; let active=false, tid=null, bx=0, by=0, _hintT=performance.now()+6000;
+  const clr=()=>{ _touchOn=false; _touchSteer=0; keys['ArrowUp']=false; keys['ArrowDown']=false; };
+  function place(t){ bx=t.clientX; by=t.clientY; joy.style.left=bx+'px'; joy.style.top=by+'px'; knob.style.transform='translate(0,0)'; joy.style.display='block'; }
+  function upd(t){ let dx=t.clientX-bx, dy=t.clientY-by; const d=Math.hypot(dx,dy); if(d>R){ dx*=R/d; dy*=R/d; } knob.style.transform='translate('+dx.toFixed(1)+'px,'+dy.toFixed(1)+'px)';
+    const nx=dx/R, ny=dy/R;
+    let s=0; if(Math.abs(nx)>DEAD) s=(nx-Math.sign(nx)*DEAD)/(1-DEAD);   // VOLANT : braquage PROPORTIONNEL (deadzone au centre)
+    _touchSteer=Math.max(-1,Math.min(1,-s)); _touchOn=true;   // signe inversé pour coller au sens du jeu (cohérent avec ton inversion du tactile)
+    keys['ArrowUp']=(ny<0.5);     // on accélère tant qu'on tient le volant…
+    keys['ArrowDown']=(ny>0.5);   // …sauf si on tire vers le bas = frein
+    if(th && th.style.display!=='none' && performance.now()>_hintT) th.style.display='none'; }
+  cv.addEventListener('touchstart',e=>{ e.preventDefault(); try{ startAudio&&startAudio(); }catch(_){} if(!active){ const t=e.changedTouches[0]; active=true; tid=t.identifier; place(t); upd(t); } },{passive:false});
+  cv.addEventListener('touchmove',e=>{ e.preventDefault(); if(!active)return; for(const t of e.changedTouches){ if(t.identifier===tid){ upd(t); break; } } },{passive:false});
+  const end=e=>{ e.preventDefault(); if(!active)return; for(const t of e.changedTouches){ if(t.identifier===tid){ active=false; tid=null; joy.style.display='none'; clr(); break; } } };
+  cv.addEventListener('touchend',end,{passive:false});
+  cv.addEventListener('touchcancel',end,{passive:false});
 })();
 // ── PLEIN ÉCRAN + verrou PAYSAGE au 1er appui (geste utilisateur requis) ──
 (function(){ let done=false;
