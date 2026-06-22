@@ -10,12 +10,14 @@
   #hud{position:fixed;left:12px;top:10px;color:#9fe8ff;font-size:13px;letter-spacing:1px;text-shadow:0 1px 2px #000;pointer-events:none}
   #hud b{color:#ffd23a}
   #help{position:fixed;left:12px;bottom:10px;color:#7aa;font-size:12px;text-shadow:0 1px 2px #000}
+  #thint{display:none;position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:30;color:#9fe8ff;font:bold 13px monospace;text-shadow:0 1px 3px #000;opacity:0.85;pointer-events:none;text-align:center}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="hud">STARS RACERS 3D — <b id="spd">0</b> km/h &nbsp; <span id="cam" style="color:#7aa">[C] caméra : poursuite</span> &nbsp; <span id="seg" style="color:#ffd23a">tronçon 0/227</span></div>
 <div id="help">← → tourner &nbsp;|&nbsp; ↑ accélérer &nbsp;|&nbsp; ↓ freiner &nbsp;|&nbsp; C = vue &nbsp;|&nbsp; <b>libre :</b> ZQSD/WASD + Espace/Maj, souris (clic) pour regarder</div>
+<div id="thint">◄ gauche &nbsp;/&nbsp; droite ► pour tourner &nbsp;•&nbsp; les deux côtés = avancer</div>
 <script src="three.min.js"></script>
 <script>window.THREE||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>')</script>
 <script src="tex3d_data.js"></script>
@@ -1598,6 +1600,24 @@ function loop(){
   requestAnimationFrame(loop);
 }
 loop();
+// ── COMMANDES TACTILES (smartphone) : écran scindé — un côté = tourner, les DEUX côtés = avancer ──
+(function(){ if(!('ontouchstart' in window) && !(navigator.maxTouchPoints>0)) return;
+  const th=document.getElementById('thint'); if(th) th.style.display='block';
+  let _hintT=performance.now()+5000;   // l'indice disparaît après ~5s
+  function evalTouches(touches){ let L=false,R=false; const W=document.documentElement.clientWidth||innerWidth;
+    for(const t of touches){ if(t.clientX < W/2) L=true; else R=true; }
+    keys['ArrowLeft']=false; keys['ArrowRight']=false; keys['ArrowUp']=false;
+    if(L&&R){ keys['ArrowUp']=true; }            // les deux côtés = avancer (tout droit)
+    else if(L){ keys['ArrowLeft']=true; }         // moitié gauche = tourner à gauche
+    else if(R){ keys['ArrowRight']=true; }        // moitié droite = tourner à droite
+    if(th && th.style.display!=='none' && performance.now()>_hintT){ th.style.display='none'; } }
+  const cv=document.getElementById('c');
+  const on=e=>{ e.preventDefault(); try{ startAudio&&startAudio(); }catch(_){} evalTouches(e.touches); };
+  cv.addEventListener('touchstart',on,{passive:false});
+  cv.addEventListener('touchmove',on,{passive:false});
+  cv.addEventListener('touchend',on,{passive:false});
+  cv.addEventListener('touchcancel',on,{passive:false});
+})();
 </script>
 </body>
 </html>
