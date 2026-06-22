@@ -17,6 +17,7 @@
   @media (orientation:portrait){ #rotate.armed{display:flex} }
   #joy{display:none;position:fixed;z-index:25;width:140px;height:140px;margin:-70px 0 0 -70px;border-radius:50%;border:2px solid rgba(159,232,255,0.4);background:rgba(120,200,255,0.10);pointer-events:none}
   #joyk{position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;background:rgba(159,232,255,0.34);border:2px solid rgba(159,232,255,0.75);box-shadow:0 0 12px rgba(159,232,255,0.4)}
+  #fsbtn{display:none;position:fixed;top:8px;right:10px;z-index:35;width:40px;height:40px;border-radius:8px;background:rgba(8,18,40,0.6);border:1px solid rgba(159,232,255,0.5);color:#bfe8ff;font-size:22px;line-height:40px;text-align:center;-webkit-tap-highlight-color:transparent;touch-action:none}
 </style>
 </head>
 <body>
@@ -26,6 +27,7 @@
 <div id="thint">Pose le pouce = volant &nbsp;•&nbsp; incline ◄► pour tourner &nbsp;•&nbsp; tire vers le bas = freiner</div>
 <div id="rotate"><div class="ic">🔄</div><div>Tourne ton téléphone<br>en mode paysage</div></div>
 <div id="joy"><div id="joyk"></div></div>
+<div id="fsbtn">⛶</div>
 <script src="three.min.js"></script>
 <script>window.THREE||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>')</script>
 <script src="tex3d_data.js"></script>
@@ -1615,14 +1617,18 @@ loop();
   { const rot=document.getElementById('rotate'); if(rot) rot.classList.add('armed'); }   // affiche "tourne ton téléphone" en portrait
   { const h=document.getElementById('help'); if(h) h.style.display='none';                // HUD tactile : on masque les rappels CLAVIER inutiles sur mobile
     const c=document.getElementById('cam'); if(c) c.style.display='none'; }
+  { const fb=document.getElementById('fsbtn'); if(fb){ fb.style.display='block';
+      fb.addEventListener('touchstart',e=>{ e.preventDefault(); e.stopPropagation(); _goFullscreen(); },{passive:false});
+      fb.addEventListener('click',e=>{ e.preventDefault(); _goFullscreen(); }); }
+    try{ _fpsEl.style.display='none'; }catch(_){} }   // bouton ⛶ plein écran + on masque le FPS (dev) sur mobile
   const cv=document.getElementById('c'), joy=document.getElementById('joy'), knob=document.getElementById('joyk');
   const R=64, DEAD=0.22; let active=false, tid=null, bx=0, by=0, _hintT=performance.now()+6000;
   const clr=()=>{ _touchOn=false; _touchSteer=0; keys['ArrowUp']=false; keys['ArrowDown']=false; };
   function place(t){ bx=t.clientX; by=t.clientY; joy.style.left=bx+'px'; joy.style.top=by+'px'; knob.style.transform='translate(0,0)'; joy.style.display='block'; }
   function upd(t){ let dx=t.clientX-bx, dy=t.clientY-by; const d=Math.hypot(dx,dy); if(d>R){ dx*=R/d; dy*=R/d; } knob.style.transform='translate('+dx.toFixed(1)+'px,'+dy.toFixed(1)+'px)';
     const nx=dx/R, ny=dy/R;
-    let s=0; if(Math.abs(nx)>DEAD) s=(nx-Math.sign(nx)*DEAD)/(1-DEAD);   // VOLANT : braquage PROPORTIONNEL (deadzone au centre)
-    _touchSteer=Math.max(-1,Math.min(1,-s)); _touchOn=true;   // signe inversé pour coller au sens du jeu (cohérent avec ton inversion du tactile)
+    let s=0; if(Math.abs(nx)>DEAD){ s=(nx-Math.sign(nx)*DEAD)/(1-DEAD); s=Math.sign(s)*Math.pow(Math.abs(s),1.8)*0.7; }   // VOLANT : proportionnel + COURBE expo (centre doux) + plafond ×0.7 (moins sensible)
+    _touchSteer=Math.max(-1,Math.min(1,s)); _touchOn=true;   // incliner à droite = tourner à droite
     keys['ArrowUp']=(ny<0.5);     // on accélère tant qu'on tient le volant…
     keys['ArrowDown']=(ny>0.5);   // …sauf si on tire vers le bas = frein
     if(th && th.style.display!=='none' && performance.now()>_hintT) th.style.display='none'; }
@@ -1632,15 +1638,11 @@ loop();
   cv.addEventListener('touchend',end,{passive:false});
   cv.addEventListener('touchcancel',end,{passive:false});
 })();
-// ── PLEIN ÉCRAN + verrou PAYSAGE au 1er appui (geste utilisateur requis) ──
-(function(){ let done=false;
-  function fs(){ if(done)return; done=true;
-    const el=document.documentElement, rf=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;
-    const lock=()=>{ try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(_){} };
-    try{ if(rf){ const p=rf.call(el); if(p&&p.then) p.then(lock).catch(lock); else lock(); } else lock(); }catch(_){ lock(); }
-    removeEventListener('pointerdown',fs); }
-  addEventListener('pointerdown',fs);
-})();
+// ── PLEIN ÉCRAN + verrou PAYSAGE (bouton ⛶ explicite + tentative auto au 1er appui) ──
+function _goFullscreen(){ const el=document.documentElement, d=document;
+  const lock=()=>{ try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(_){} };
+  try{ if(!d.fullscreenElement && !d.webkitFullscreenElement){ const rf=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen; if(rf){ const p=rf.call(el); if(p&&p.then) p.then(lock).catch(lock); else lock(); } else lock(); } else lock(); }catch(_){ lock(); } }
+(function(){ let done=false; function once(){ if(done)return; done=true; _goFullscreen(); removeEventListener('pointerdown',once); } addEventListener('pointerdown',once); })();
 </script>
 </body>
 </html>
